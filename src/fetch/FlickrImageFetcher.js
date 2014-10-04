@@ -8,20 +8,22 @@
 
 import Flickr from 'node-flickr';
 import ImageFetcher from './ImageFetcher';
-import Events from 'events';
 
 var MAX_IMAGES = 1000,
     PAGE_SIZE = 100;
 
 class FlickrImageFetcher extends ImageFetcher {
-    constructor( key ) {
+    constructor( assemblyLine, config ) {
+        super( assemblyLine );
+
+        console.log( config );
+
+        this.config = config;
         this.flickr = new Flickr({
-            'api_key': key
+            'api_key': config.key
         });
         this.interval = false;
         this.nextPage = 0;
-        this.emitter = new Events.EventEmitter();
-        this.FETCH_EVENT = 'FETCHED_FLICKR';
     }
 
     _constructUrl( photo ) {
@@ -47,11 +49,11 @@ class FlickrImageFetcher extends ImageFetcher {
             'per_page': PAGE_SIZE,
             'sort': 'interestingness-desc'
         }, function( result ) {
-            self.emitter.emit( self.FETCH_EVENT, result.photos.photo.map( self._constructUrl ) );
+            self.assemblyLine.put( self.assemblyLine.FETCHED_LINE, result.photos.photo.map( self._constructUrl ) );
         });
     }
 
-    start( search, interval ) {
+    start( search ) {
         var self = this;
         if ( !this.interval ) {
             this.fetch( search );
@@ -61,7 +63,7 @@ class FlickrImageFetcher extends ImageFetcher {
                 } else {
                     self.stop();
                 }
-            }, interval || 30000 );
+            }, this.config.interval || 30000 );
         }
         return this.emitter;
     }

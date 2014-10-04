@@ -7,8 +7,8 @@
 */
 
 class ImageFetcher {
-    constructor() {
-
+    constructor( assemblyLine ) {
+        this.assemblyLine = assemblyLine;
     }
 
     fetch(  ) {

@@ -7,3 +7,8 @@ The generated image looks like shit. Why is that?
     * It's more like too less colors.
 * Incorrect behavior of thief? — **Nope**
     * It's just that some images are better suited to be a pixel than others.
+
+## Todo
+
+* Pass everything along via redis for greater independence
+* Fiddle with mosaic algorithm

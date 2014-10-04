@@ -1,7 +1,6 @@
 /* jshint ignore:start */
 
 import ImageAnalyzer from './analyze/ImageAnalyzer';
-import FlickrImageFetcher from './fetch/FlickrImageFetcher';
 import SqliteImageStore from './store/SqliteImageStore';
 import Mosaicer from './mosaic/Mosaicer';
 import ThiefTest from './test/ThiefTest';
@@ -9,7 +8,6 @@ import ColorDistributionTest from './test/ColorDistributionTest';
 import Q from 'q';
 import winston from 'winston';
 
-var fetcher = new FlickrImageFetcher( process.env.FLICKR_API_KEY );
 var store = new SqliteImageStore( './images' );
 var anal = new ImageAnalyzer( store );
 var thiefTest = new ThiefTest( store );
