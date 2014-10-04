@@ -16,8 +16,9 @@ The generated image looks like shit. Why is that?
 3. Setup ``gm`` [here](https://github.com/aheckmann/gm#getting-started)
 4. ``npm install -g foreman``
 5. ``npm install``
-6. Edit files in ``src`` at will, you probably want to add your Flickr API key in ``fetcher.js`` and edit the search tags.
-7. ``gulp build && foreman start``
+6. Create a [``.env`` file](https://github.com/strongloop/node-foreman#environmental-variables) and define your Flickr API key
+7. Edit files in ``src`` at will, you probably want to edit the search tags in ``fetcher.js``.
+8. ``gulp build && foreman start``
 
 Now there are several processes running that
 
