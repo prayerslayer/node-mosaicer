@@ -61,7 +61,7 @@ class FlickrImageFetcher extends ImageFetcher {
                 } else {
                     self.stop();
                 }
-            }, interval || 30000 );
+            }, interval || 30000 );
         }
         return this.emitter;
     }

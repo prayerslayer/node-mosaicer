@@ -10,18 +10,18 @@ import OS from 'os';
 import gm from 'gm';
 import _ from 'lodash';
 import request from 'request';
+import Q from 'q';
 import winston from 'winston';
 
 var COLOR_THRESHOLD = 64;
 
 class SqliteImageStore extends ImageStore {
     constructor( folder ) {
-        this.folder = folder || OS.tmpdir() + '/node-mosaicer';
+        this.folder = folder || OS.tmpdir() + '/node-mosaicer';
         FS.mkdir( this.folder );
         SQLite.verbose();
         this.db = new SQLite.Database( 'node-mosaicer' );
-        this.db.on( 'trace', winston.info.bind( winston ) );
-        this.db.on( 'profile', winston.info.bind( winston ) );
+        this.db.on( 'trace', winston.log.bind( winston ) );
         this._setup();
     }
 
@@ -55,6 +55,9 @@ class SqliteImageStore extends ImageStore {
                                         'AND mi_green BETWEEN ?2 - ?4 AND ?2 + ?4 ' +
                                         'AND mi_blue BETWEEN ?3 - ?4 AND ?3 + ?4;' );
         this.deleteImg = db.prepare( 'DELETE FROM mosaic_image WHERE mi_id=?;' );
+
+        this.queryAll = db.prepare( 'SELECT mi_id as id, mi_path as path, mi_red as r, mi_green as g, mi_blue as b ' +
+                                    'FROM mosaic_image;' );
 
         this.selectUnanalyzed = db.prepare( 'SELECT mi_id as id, mi_path as path ' +
                                             'FROM mosaic_image ' +
@@ -105,8 +108,8 @@ class SqliteImageStore extends ImageStore {
 
     delete( imgId, path ) {
         winston.info( 'deleting', imgId );
-        this.deleteImg.run( imgId );
         FS.unlink( path );
+        return Q.ninvoke( this.deleteImg, 'run', imgId );
     }
 
     put( images ) {
@@ -115,16 +118,27 @@ class SqliteImageStore extends ImageStore {
 
     setColor( imageId, color ) {
         winston.info( imageId, 'has color', color );
-        this.analyze.run.apply( this.analyze, color.concat([ imageId ]) );
+        return Q.ninvoke( this.analyze, 'run', color[0], color[1], color[2], imageId );
+    }
+
+    getAll() {
+        return Q.ninvoke( this.queryAll, 'all' );
     }
 
     getUnanalyzed( cb ) {
         this.selectUnanalyzed.get( cb );
     }
 
-    query( color, threshold, cb ) {
-        winston.info( 'querying for color', color );
-        this.queryColor.all( color[0], color[1], color[2], threshold || COLOR_THRESHOLD, cb);
+    query( color, threshold ) {
+        var defer = Q.defer();
+        this.queryColor.all( color[0], color[1], color[2], threshold || COLOR_THRESHOLD, function( err, rows ) {
+            if ( err ) {
+                defer.reject( err );
+            } else {
+                defer.resolve( rows );
+            }
+        });
+        return defer.promise;
     }
 }
 

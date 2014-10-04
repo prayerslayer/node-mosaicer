@@ -11,11 +11,11 @@ class ImageStore {
 
     }
 
-    put( image, metadata ) {
+    put(  ) {
         throw 'not implemented';
     }
 
-    query( color, tags ) {
+    query(  ) {
         throw 'not implemented';
     }
 }

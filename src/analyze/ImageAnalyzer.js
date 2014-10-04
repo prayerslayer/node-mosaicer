@@ -5,7 +5,6 @@
     - analyze( image )
 */
 
-import FS from 'fs';
 import ColorThief from 'couleur';
 
 class ImageAnalyzer {
@@ -16,7 +15,7 @@ class ImageAnalyzer {
     _analyze() {
         var self = this;
         self.store.getUnanalyzed( function( err, row ) {
-            if ( err || !row ) {
+            if ( err || !row ) {
                 return;
             }
             ColorThief.getColor( row.path, 5, function( err, c ) {

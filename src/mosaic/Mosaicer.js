@@ -4,19 +4,31 @@
     - getMosaic( sourceImg [, dimension, tags])
 */
 
-import FS from 'fs';
 import gm from 'gm';
 import Q from 'q';
-import path from 'path';
 import GetPixels from 'get-pixels';
 import winston from 'winston';
+
+function takeRandom( array ) {
+    var max = array.length - 1,
+        min = 0;
+
+    if ( array.length === 1 ) {
+        return array[ 0 ];
+    }
+    return array[ Math.floor( Math.random() * ( max - min + 1 ) + min ) ];
+}
+
+function pick( imgArray ) {
+    console.log( 'picking from', imgArray );
+    var val = imgArray && imgArray.length ? takeRandom( imgArray ).path : false;
+    return Q().thenResolve( val );
+}
 
 class Mosaicer {
     constructor( store ) {
         this.store = store;
     }
-
-
 
     _getDimensions( source ) {
         var defer = Q.defer();
@@ -36,40 +48,44 @@ class Mosaicer {
         return Q.nfcall( GetPixels, source, 'image/jpeg' );
     }
 
-    _takeRandom( array ) {
-        var max = array.length - 1,
-            min = 0;
-        return array[ Math.floor( Math.random() * ( max - min + 1 ) + min ) ];
-    }
+    
 
     _findPixels( pixels ) {
         var defer = Q.defer();
         var self = this;
         var columns = pixels.shape[0];
-        var promises = [];
+        var funcs = [];
         var images = [];
+
 
         for (var i = 0; i <= pixels.shape[0] - 1; i++) {
             for (var j = 0; j <= pixels.shape[1] - 1; j++) {
                 var rgb = [ pixels.get( i, j, 0 ), pixels.get( i, j, 1 ), pixels.get( i, j, 2 ) ];
-                promises.push( Q.ninvoke( self.store, 'query', rgb, 8 ) );
+                funcs.push( self.store.query.bind( self.store, rgb, 8 ) );
             }
         }
 
-        Q
-        .all( promises )
-        .then( function( imgArrays ) {
-            for (var i = 0; i <= imgArrays.length - 1; i++) {
-                if ( imgArrays[i].length ) {
-                    images.push( self._takeRandom( imgArrays[i] ).path ); 
-                } else {
-                    images.push( false );
-                }
-            }
-            winston.info( images );
+        winston.info( funcs.length );
+
+        var all = funcs.reduce( function( prev, curr, idx  ) {
+                        // console.log( idx, typeof prev, typeof curr );
+                        return prev
+                                    .then( pick )
+                                    .then( function( picked ) {
+                                        images.push( picked );
+                                        return Q().thenResolve();
+                                    })
+                                    .then( curr );
+                    }, Q().thenResolve() );
+
+        console.log( all );
+
+        all
+        // .then( pick )
+        .then( function() {
+            console.log( images );
             defer.resolve( [ columns ].concat( images ) );
-        })
-        .fail( defer.reject.bind( defer ) );
+        });
 
         return defer.promise;
     }
@@ -81,10 +97,10 @@ class Mosaicer {
         images.forEach( function( img, idx ) {
             var x = idx % columns,
                 y = idx < columns ? 0 : Math.floor( idx / columns );
-            winston.debug( 'stiching image', idx );
+            winston.info( 'stiching image', img, x, y );
             if ( img ) {
                 mosaic
-                .in( '-page', '+' + (x*500) + '+' + (y*500) )
+                .in( '-page', '+' + (x*540) + '+' + (y*540) )
                 .in( img );
             }
         });
@@ -93,7 +109,7 @@ class Mosaicer {
             .mosaic()
             .write( 'mosaic.jpg', function( err ) {
                 if ( err ) {
-                    winston.error( err );
+                    winston.info( 'error', err );
                 } else {
                     winston.info( 'mosaic created' );
                 }
@@ -118,10 +134,7 @@ class Mosaicer {
         return defer.promise;
     }
 
-    getMosaic( source, patchSize, tags ) {
-        var dir = path.dirname( source ),
-            file= path.basename( source );
-
+    getMosaic( source, patchSize ) {
         var resizeTo = this._resize.bind( this._resize, patchSize, source );
 
         this

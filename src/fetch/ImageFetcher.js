@@ -11,11 +11,11 @@ class ImageFetcher {
 
     }
 
-    fetch( search ) {
+    fetch(  ) {
         throw 'not implemented';
     }
 
-    start( interval ) {
+    start(  ) {
         throw 'not implemented';
     }
 
