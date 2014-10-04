@@ -55,8 +55,6 @@ class Mosaicer {
         var self = this;
         var columns = pixels.shape[0];
         var promises = [];
-        var images = [];
-
 
         for (var i = 0; i <= pixels.shape[0] - 1; i++) {
             for (var j = 0; j <= pixels.shape[1] - 1; j++) {

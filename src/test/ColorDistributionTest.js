@@ -39,7 +39,7 @@ class ColorDistributionTest {
             var count = Object.keys( histo ).length,
                 w = 10,
                 maxHeight = 50,
-                img = gm( count * w, maxHeight, "#fff" );
+                img = gm( count * w, maxHeight, '#fff' );
 
             Object.keys( histo ).forEach( function( color, idx  ) {
                 img
