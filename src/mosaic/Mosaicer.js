@@ -65,10 +65,7 @@ class Mosaicer {
             }
         }
 
-        winston.info( funcs.length );
-
-        var all = funcs.reduce( function( prev, curr, idx  ) {
-                        // console.log( idx, typeof prev, typeof curr );
+        var all = funcs.reduce( function( prev, curr  ) {
                         return prev
                                     .then( pick )
                                     .then( function( picked ) {
@@ -77,8 +74,6 @@ class Mosaicer {
                                     })
                                     .then( curr );
                     }, Q().thenResolve() );
-
-        console.log( all );
 
         all
         // .then( pick )
@@ -100,7 +95,7 @@ class Mosaicer {
             winston.info( 'stiching image', img, x, y );
             if ( img ) {
                 mosaic
-                .in( '-page', '+' + (x*540) + '+' + (y*540) )
+                .in( '-page', '+' + (x*500) + '+' + (y*500) )
                 .in( img );
             }
         });

@@ -37,4 +37,4 @@ colorTest.test();
 
 // setInterval( noop, 3600000 );
 
-/* jshint ignore:end 
+/* jshint ignore:end */
