@@ -8,7 +8,27 @@ The generated image looks like shit. Why is that?
 * Incorrect behavior of thief? — **Nope**
     * It's just that some images are better suited to be a pixel than others.
 
+# Usage
+
+0. Checkout repo
+1. Setup ``node-canvas`` [here](https://github.com/Automattic/node-canvas#installation)
+2. Setup ``redis`` (``brew install redis``)
+3. Setup ``gm`` [here](https://github.com/aheckmann/gm#getting-started)
+4. ``npm install -g foreman``
+5. ``npm install``
+6. Edit files in ``src`` at will, you probably want to add your Flickr API key in ``fetcher.js`` and edit the search tags.
+7. ``gulp build && foreman start``
+
+Now there are several processes running that
+
+* fetch URLs to photos from the Flickr API according to the specified tag
+* download these URLs to the specified folder and normalize them (500x500 squares)
+* analyze these images for the dominant color
+* store path and color in a sqlite database.
+
+Checkout ``mosaic.js`` for how to create an image mosaic.
+
 ## Todo
 
-* Pass everything along via redis for greater independence
 * Fiddle with mosaic algorithm
+* High resolution mosaic not possible because ``gm`` apparently spawns too many subprocesses.

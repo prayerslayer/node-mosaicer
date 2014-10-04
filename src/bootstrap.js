@@ -6,5 +6,6 @@ traceur.require.makeDefault(function(filename) {
   return filename.indexOf('node_modules') === -1;
 });
 require( './' + argv.file );
+// require( './index' );
 
 /* jshint ignore:start */

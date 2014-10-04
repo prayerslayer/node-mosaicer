@@ -11,7 +11,8 @@
   "devDependencies": {
     "gulp": "^3.8.8",
     "gulp-jshint": "^1.8.5",
-    "gulp-traceur": "^0.13.0"
+    "gulp-traceur": "^0.13.0",
+    "foreman": "1.0.0"
   },
   "dependencies": {
     "couleur": "^1.2.2",

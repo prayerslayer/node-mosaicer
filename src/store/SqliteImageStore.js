@@ -5,23 +5,16 @@
 import ImageStore from './ImageStore';
 import SQLite from 'sqlite3';
 import FS from 'fs';
-import Crypto from 'crypto';
-import OS from 'os';
-import gm from 'gm';
-import _ from 'lodash';
-import request from 'request';
 import Q from 'q';
 import winston from 'winston';
 
 var COLOR_THRESHOLD = 64;
 
 class SqliteImageStore extends ImageStore {
-    constructor( folder ) {
-        this.folder = folder || OS.tmpdir() + '/node-mosaicer';
-        FS.mkdir( this.folder );
+    constructor() {
         SQLite.verbose();
         this.db = new SQLite.Database( 'node-mosaicer' );
-        this.db.on( 'trace', winston.log.bind( winston ) );
+        this.db.on( 'trace', winston.info.bind( winston ) );
         this._setup();
     }
 
@@ -36,19 +29,8 @@ class SqliteImageStore extends ImageStore {
                     'mi_green INTEGER, ' +
                     'mi_blue INTEGER ); '
                 );
-
-            // terms
-            db.run( 'CREATE TABLE IF NOT EXISTS mosaic_term ( ' +
-                    'mt_term TEXT CONSTRAINT c_mt_pk PRIMARY KEY );'
-            );
-
-            // images with terms
-            db.run( 'CREATE TABLE IF NOT EXISTS mosaic_image_term ( ' + 
-                    'mit_image_id INTEGER CONSTRAINT c_mit_fk_mi REFERENCES mosaic_image( mi_id ), ' + 
-                    'mit_term TEXT CONSTRAINT c_mit_fk_mt REFERENCES mosaic_term( mt_term ) ); '
-            );
         });
-        this.insertImg = db.prepare( 'INSERT INTO mosaic_image( mi_path ) VALUES ( ? )');
+        this.insertImg = db.prepare( 'INSERT INTO mosaic_image( mi_path, mi_red, mi_green, mi_blue ) VALUES ( ?, ?, ?, ? )');
         this.queryColor = db.prepare(   'SELECT mi_id as id, mi_path as path ' +
                                         'FROM mosaic_image ' +
                                         'WHERE mi_red BETWEEN ?1 - ?4 AND ?1 + ?4 ' +
@@ -59,51 +41,8 @@ class SqliteImageStore extends ImageStore {
         this.queryAll = db.prepare( 'SELECT mi_id as id, mi_path as path, mi_red as r, mi_green as g, mi_blue as b ' +
                                     'FROM mosaic_image;' );
 
-        this.selectUnanalyzed = db.prepare( 'SELECT mi_id as id, mi_path as path ' +
-                                            'FROM mosaic_image ' +
-                                            'WHERE mi_green is NULL and mi_blue IS NULL and mi_red IS NULL;' );
-        this.analyze = db.prepare( 'UPDATE mosaic_image SET mi_red=?, mi_green=?, mi_blue=? WHERE mi_id=?;' );
-
+        
         winston.info( 'database setup done' );
-    }
-
-    _hash( string ) {
-        return Crypto.createHash( 'sha1' ).update( string ).digest( 'hex' );
-    }
-
-    _download( uri, path, filename, callback ) {
-        var size = { w: 500, h: 500 };
-        var tmpFile = 'tmp_' + filename;
-        request( uri )
-            .pipe( FS.createWriteStream( path + tmpFile ) )
-            .on( 'close', function() {
-                gm( path + tmpFile )
-                    .size( function( err, dim ) {
-                        if ( dim ) {
-                            var tileSize = Math.min( dim.width, dim.height );
-                            gm( path + tmpFile )
-                                .gravity( 'Center' )
-                                .crop( tileSize, tileSize )
-                                .resize( size.w, size.h + '>' )
-                                .write( path + filename, function( err ) {
-                                    FS.unlink( path + tmpFile );
-                                    if ( !err ) {
-                                        callback();
-                                    }
-                                });
-                        }
-                    });
-            });
-    }
-
-    _insertImage( image ) {
-        var self = this,
-            filename = this._hash( image ) + '.jpg',
-            path = this.folder + '/' ;
-        this._download( image, path, filename, function() {
-            self.insertImg.run( path + filename );
-            winston.info( 'new image', path + filename );
-        });
     }
 
     delete( imgId, path ) {
@@ -112,21 +51,13 @@ class SqliteImageStore extends ImageStore {
         return Q.ninvoke( this.deleteImg, 'run', imgId );
     }
 
-    put( images ) {
-        _.each( images, this._insertImage, this );
-    }
-
-    setColor( imageId, color ) {
-        winston.info( imageId, 'has color', color );
-        return Q.ninvoke( this.analyze, 'run', color[0], color[1], color[2], imageId );
+    put( image ) {
+        winston.info( 'storing image', image.file );
+        this.insertImg.run.apply( this.insertImg, [ image.file ].concat( image.color ) );
     }
 
     getAll() {
         return Q.ninvoke( this.queryAll, 'all' );
-    }
-
-    getUnanalyzed( cb ) {
-        this.selectUnanalyzed.get( cb );
     }
 
     query( color, threshold ) {

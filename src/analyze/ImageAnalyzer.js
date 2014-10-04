@@ -5,34 +5,35 @@
     - analyze( image )
 */
 
-import ColorThief from 'couleur';
-
 class ImageAnalyzer {
-    constructor( store ) {
-        this.store = store;
+    constructor( line, proc ) {
+        this.assemblyLine = line;
+        this.processor = proc;
+        this.interval = false;
     }
 
     _analyze() {
         var self = this;
-        self.store.getUnanalyzed( function( err, row ) {
-            if ( err || !row ) {
-                return;
-            }
-            ColorThief.getColor( row.path, 5, function( err, c ) {
-                if ( !err ) {
-                    // flickr "not available images" have this signature
-                    if ( c[0] === 42 && c[1] === 52 && c[2] === 64 ) {
-                        self.store.delete( row.id, row.path );
-                    } else {
-                        self.store.setColor( row.id, c);
-                    }
-                }
-            } );
-        });
+
+        this.assemblyLine
+            .pop( this.assemblyLine.DOWNLOADED_LINE )
+            .then( this.processor.getColor )
+            .then( function( image ) {
+                self.assemblyLine.put( self.assemblyLine.ANALYZED_LINE, image );
+            });
     }
 
     start() {
-        setInterval( this._analyze.bind( this ), 1000 );
+        if ( !this.interval ) {
+            this.interval = setInterval( this._analyze.bind( this ), 1000 );
+        }
+    }
+
+    stop() {
+        if ( this.interval ) {
+            clearInterval( this.interval );
+            this.interval = false;
+        }
     }
 }
 

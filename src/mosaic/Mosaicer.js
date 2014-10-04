@@ -54,31 +54,20 @@ class Mosaicer {
         var defer = Q.defer();
         var self = this;
         var columns = pixels.shape[0];
-        var funcs = [];
+        var promises = [];
         var images = [];
 
 
         for (var i = 0; i <= pixels.shape[0] - 1; i++) {
             for (var j = 0; j <= pixels.shape[1] - 1; j++) {
                 var rgb = [ pixels.get( i, j, 0 ), pixels.get( i, j, 1 ), pixels.get( i, j, 2 ) ];
-                funcs.push( self.store.query.bind( self.store, rgb, 8 ) );
+                promises.push( self.store.query( rgb, 8 ).then( pick ) );
             }
         }
 
-        var all = funcs.reduce( function( prev, curr  ) {
-                        return prev
-                                    .then( pick )
-                                    .then( function( picked ) {
-                                        images.push( picked );
-                                        return Q().thenResolve();
-                                    })
-                                    .then( curr );
-                    }, Q().thenResolve() );
-
-        all
-        // .then( pick )
-        .then( function() {
-            console.log( images );
+        
+        Q.all( promises )
+        .then(function( images ) {
             defer.resolve( [ columns ].concat( images ) );
         });
 
