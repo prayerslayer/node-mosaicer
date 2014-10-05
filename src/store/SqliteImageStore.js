@@ -14,7 +14,7 @@ class SqliteImageStore extends ImageStore {
     constructor() {
         SQLite.verbose();
         this.db = new SQLite.Database( 'node-mosaicer' );
-        this.db.on( 'trace', winston.info.bind( winston ) );
+        // this.db.on( 'trace', winston.info.bind( winston ) );
         this._setup();
     }
 

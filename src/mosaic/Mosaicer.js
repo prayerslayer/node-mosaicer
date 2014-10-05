@@ -20,7 +20,6 @@ function takeRandom( array ) {
 }
 
 function pick( imgArray ) {
-    console.log( 'picking from', imgArray );
     var val = imgArray && imgArray.length ? takeRandom( imgArray ).path : false;
     return Q().thenResolve( val );
 }
@@ -49,17 +48,20 @@ class Mosaicer {
     }
 
     
-
+    // FIXME the error is here somewhere
+    // previously the array was formed column-first instead of row-first
+    // now it's 90 degrees rotated
+    // and for some reason a square the size of source image height
     _findPixels( pixels ) {
         var defer = Q.defer();
         var self = this;
         var columns = pixels.shape[0];
         var promises = [];
 
-        for (var i = 0; i <= pixels.shape[0] - 1; i++) {
-            for (var j = 0; j <= pixels.shape[1] - 1; j++) {
-                var rgb = [ pixels.get( i, j, 0 ), pixels.get( i, j, 1 ), pixels.get( i, j, 2 ) ];
-                promises.push( self.store.query( rgb, 8 ).then( pick ) );
+        for (var i = 0; i <= pixels.shape[1] - 1; i++) {
+            for (var j = 0; j <= pixels.shape[0] - 1; j++) {
+                var rgb = [ pixels.get( j, i, 0 ), pixels.get( j, i, 1 ), pixels.get( j, i, 2 ) ];
+                promises.push( Q.delay( (i+j)*100 ).then( self.store.query.bind( self.store, rgb, 8 ) ).then( pick ) );
             }
         }
 
@@ -74,17 +76,23 @@ class Mosaicer {
 
     _stitch( images ) {
         var columns = images.splice( 0, 1 )[0];
-        var mosaic = gm();
-
+        var count = images.length;
+        var width = columns * 500;
+        var height = Math.floor( count / columns ) * 500;
+        var mosaic = gm().background( '#000' );
+        winston.info( 'plotting', count, 'images in', columns, 'columns on', width, height, 'canvas' );
         images.forEach( function( img, idx ) {
             var x = idx % columns,
-                y = idx < columns ? 0 : Math.floor( idx / columns );
-            winston.info( 'stiching image', img, x, y );
+                y = idx < columns ? 0 : Math.floor( idx / columns ),
+                page = '+' + (x*500) + '+' + (y*500);
+            winston.info( 'stiching image #', idx, img, x, y );
+            
             if ( img ) {
                 mosaic
-                .in( '-page', '+' + (x*500) + '+' + (y*500) )
-                .in( img );
+                    .in( '-page', page )
+                    .in( img );
             }
+            
         });
 
         mosaic
