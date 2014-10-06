@@ -8,6 +8,15 @@ import gm from 'gm';
 import Q from 'q';
 import GetPixels from 'get-pixels';
 import winston from 'winston';
+import ndarray from 'ndarray';
+
+function set( images, i, j ) {
+    return function( img ) {
+        images.set( i, j, img );
+        winston.info( 'image', i, j, img );
+        return Q().thenResolve();
+    };
+}
 
 function takeRandom( array ) {
     var max = array.length - 1,
@@ -21,7 +30,9 @@ function takeRandom( array ) {
 
 function pick( imgArray ) {
     var val = imgArray && imgArray.length ? takeRandom( imgArray ).path : false;
-    return Q().thenResolve( val );
+    return function() {
+        return Q().thenResolve( val );
+    };
 }
 
 class Mosaicer {
@@ -48,52 +59,91 @@ class Mosaicer {
     }
 
     
-    // FIXME the error is here somewhere
-    // previously the array was formed column-first instead of row-first
-    // now it's 90 degrees rotated
-    // and for some reason a square the size of source image height
+    // TODO
+    // future optimization: pre-bucketize the colors in the image, then query for buckets
+    // to further reduce DB calls
     _findPixels( pixels ) {
         var defer = Q.defer();
         var self = this;
         var columns = pixels.shape[0];
+        var rows = pixels.shape[1];
         var promises = [];
+        var colors = {};
 
-        for (var i = 0; i <= pixels.shape[1] - 1; i++) {
-            for (var j = 0; j <= pixels.shape[0] - 1; j++) {
-                var rgb = [ pixels.get( j, i, 0 ), pixels.get( j, i, 1 ), pixels.get( j, i, 2 ) ];
-                promises.push( Q.delay( (i+j)*100 ).then( self.store.query.bind( self.store, rgb, 8 ) ).then( pick ) );
+        function colorToArray( c ) {
+            return c.split(',').map( function( rgb ) {
+                return parseInt( rgb, 10 );
+            });
+        }
+
+        for (var i = 0; i < columns; i++) {
+            for (var j = 0; j < rows; j++) {
+                var rgb = [ pixels.get( i, j, 0 ), pixels.get( i, j, 1 ), pixels.get( i, j, 2 ) ];
+                colors[ rgb.join( ',' ) ] = [];
             }
         }
 
+        console.log( Object.keys( colors ).length );
+
+        Object.keys( colors )
+            .forEach( function( color ) {
+                var prom = Q.delay()
+                            .then( self.store.query.bind( self.store, colorToArray( color ) ) )
+                            .then( function( images ) {
+                                colors[ color ] = images;
+                                return Q().thenResolve();
+                            });
+                promises.push( prom );
+            });
         
         Q.all( promises )
-        .then(function( images ) {
-            defer.resolve( [ columns ].concat( images ) );
+        .then(function() {
+            var images = ndarray( [], [ columns, rows ] );
+            var pickPromises = [];
+
+
+            for (var i = 0; i < columns; i++) {
+                for (var j = 0; j < rows; j++) {
+                    var rgb = [ pixels.get( i, j, 0 ), pixels.get( i, j, 1 ), pixels.get( i, j, 2 ) ];
+                    var pickProm = Q.delay()
+                                    .then( pick( colors[ rgb.join( ',' ) ] ) )
+                                    .then( set( images, i, j ) );
+                    pickPromises.push( pickProm );
+                }
+            }
+            Q.all( pickPromises )
+            .then( function() {
+                defer.resolve( images );
+            });
+
         });
 
         return defer.promise;
     }
 
+    // TODO make images as 2x2 ndarray
+    // then stitch smaller parts first by divide and conquer
+    // lastly stich smaller parts together to final mosaic
     _stitch( images ) {
-        var columns = images.splice( 0, 1 )[0];
-        var count = images.length;
-        var width = columns * 500;
-        var height = Math.floor( count / columns ) * 500;
+        var columns = images.shape[0];
+        var rows = images.shape[1];
         var mosaic = gm().background( '#000' );
-        winston.info( 'plotting', count, 'images in', columns, 'columns on', width, height, 'canvas' );
-        images.forEach( function( img, idx ) {
-            var x = idx % columns,
-                y = idx < columns ? 0 : Math.floor( idx / columns ),
-                page = '+' + (x*500) + '+' + (y*500);
-            winston.info( 'stiching image #', idx, img, x, y );
-            
-            if ( img ) {
-                mosaic
-                    .in( '-page', page )
-                    .in( img );
+
+        console.log( images.data );
+
+        for (var x = 0; x < columns; x++) {
+            for (var y = 0; y < rows; y++) {
+                var img = images.get( x, y ),
+                    page = '+' + (x*500) + '+' + (y*500);
+
+                winston.info( 'stiching image', img, x, y );
+                if ( img ) {
+                    mosaic
+                        .in( '-page', page )
+                        .in( img );
+                }
             }
-            
-        });
+        }
 
         mosaic
             .mosaic()
