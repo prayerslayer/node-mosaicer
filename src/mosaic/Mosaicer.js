@@ -145,13 +145,15 @@ class Mosaicer {
             }
         }
 
+        var start = Date.now();
         mosaic
             .mosaic()
             .write( 'mosaic.jpg', function( err ) {
                 if ( err ) {
                     winston.info( 'error', err );
                 } else {
-                    winston.info( 'mosaic created' );
+                    var end = Date.now();
+                    winston.info( 'mosaic created in', (end-start)/1000, 's' );
                 }
             } );
             
